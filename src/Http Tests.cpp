@@ -6,13 +6,14 @@
 #include <sstream>
 #include <string>
 #include <algorithm>
+
 #include <thread>
 #include <windows.h>
 #include <wininet.h> // Adicione esta linha
 #include <mutex>
 #include "../build/generated/resources.h"
 #include "dirGetter.h"
-
+#include "zip.h"
 #include <atomic>
 
 #include "Commands.h"
@@ -171,11 +172,11 @@ static void TCPThread(SOCKET serverSocket, std::string baseDir)
 
             //}
             std::filesystem::path outPath;
-            resolveSafe(baseDir,path, outPath);
+            bool isSafe = resolveSafe(baseDir,path, outPath);
             std::ifstream file(outPath, std::ios::binary);
             std::ostringstream response;
 			//generamos la respuesta HTTP en caso de existir el direcotrio o no
-            if (file) {
+            if (file && isSafe) {
                 std::ostringstream ss;
                 ss << file.rdbuf();
                 std::string content = ss.str();
@@ -188,24 +189,47 @@ static void TCPThread(SOCKET serverSocket, std::string baseDir)
                 std::cout << "Valid request...\n\n\n\n\n";
             }
             else {
+                std::vector<unsigned char> zip;
+                if (isSafe)
+                {
+                    zip = compressDirectory(path);
+                }
                 //creacion de la respuesta
                 const auto start{std::chrono::steady_clock::now()};
 
                 //creacion de archivo html
 
-                std::string htmlFiles;
-                recursiveHTMLFileSystemCreator(std::filesystem::path("\\"),htmlFiles,0);
 
-                std::string html(reinterpret_cast<const char*>(INDEX_DATA), INDEX_SIZE);
-                replaceAll(html, "{{FILES}}", htmlFiles);
+                if (zip.empty())
 
-                std::string content = "<h1>404 Not Found</h1>";
-                response << "HTTP/1.1 404 Not Found\r\n";
-                response << "Content-Type: text/html\r\n";
-                response << "Content-Length: " << html.size() << "\r\n";
-                response << "\r\n";
-                response << (html);
-                std::cout << "Invalid request, opening index...\n";;
+                {
+                    std::string htmlFiles;
+                    recursiveHTMLFileSystemCreator(std::filesystem::path("\\"),htmlFiles,0);
+                    #ifdef _DEBUG
+                    std::cout << "\033[34m" << "HTML generated with " << "\033[32m" << htmlFiles.size() <<"\033[34m" << "bytes. " << "\033[37m" <<"\n\n";
+                    #endif
+                    std::string html(reinterpret_cast<const char*>(INDEX_DATA), INDEX_SIZE);
+                    replaceAll(html, "{{FILES}}", htmlFiles);
+                    std::string content = "<h1>Index</h1>";
+                    response << "HTTP/1.1 404 Not Found\r\n";
+                    response << "Content-Type: text/html\r\n";
+                    response << "Content-Length: " << html.size() << "\r\n";
+                    response << "\r\n";
+                    response << (html);
+                    std::cout << "Invalid request, opening index...\n";;
+                } else
+                {
+                    std::filesystem::path p(path);
+                    if (!p.has_filename()) p = p.parent_path();   // quita la barra final
+                    std::string nombre = p.filename().string();
+                    response << "HTTP/1.1 200 OK\r\n";
+                    response << "Content-Disposition: attachment; filename=\""+nombre+".zip\"\r\n";
+                    response << "Content-Length: " << zip.size() << "\r\n";
+                    response << "\r\n";
+                    response.write(reinterpret_cast<const char*>(zip.data()), zip.size());
+                    std::cout << "Valid request...\n\n\n\n\n";
+                }
+
 
 
                 const auto finish{std::chrono::steady_clock::now()};

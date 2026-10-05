@@ -86,11 +86,11 @@ flags = {
 
 verifyArguments(compilationMode, flags)
 includeDirs = ["-Iexternal/includes"] #Lista de dirs a incluir, cada dir tem de ser precedido por -I    
-libsDirs = ["-Lexternal/libs"] #Lista de dirs de libs, cada dir tem de ser precedido por -L
+libsDirs = ["-Lresources/"] #Lista de dirs de libs, cada dir tem de ser precedido por -L
 libs = {
     "debug": [],
     "release": [],
-    "all": ["-lm","-lwininet","-lws2_32","-static"]
+    "all": ["-lm","-lwininet","-lws2_32","-static","-lzip"]
 }
 #Configurações de paths, extensões, libs e flags
 compilationPath = Path("build/compilationFiles") #Path onde fica todo o relacionado com a compilação

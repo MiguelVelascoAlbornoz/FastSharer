@@ -4,6 +4,7 @@
 #include "dirGetter.h"
 
 
+#include <algorithm>
 #include <iostream>
 #include <windows.h>
 //
@@ -168,7 +169,16 @@ void recursiveHTMLFileSystemCreator(const fs::path& path, std::string& out, int 
             auto relativePath = htmlEscape(entry.path().string());
             if (entry.is_regular_file())
             {
-                out += "<li><a href=\"" + relativePath + "\" download>" + name +"</a></li>";
+                std::string extension = entry.path().extension().string();
+
+                std::transform(
+                    extension.begin(),
+                    extension.end(),
+                    extension.begin(),
+                    [](unsigned char c) { return std::tolower(c); }
+                );
+
+                out += "<li><a href=\"" + relativePath + "\" download><svg class=\"icon\"><use href=\"#" + extension +"\"></use></svg>" + name +"</a></li>";
 
             } else
             {
@@ -205,4 +215,57 @@ void replaceAll(std::string& text, const std::string& key, const std::string& va
          pos += value.size();   // salta lo insertado, evita bucle infinito
      }
  }
+
+#include "zip.h"
+#include <cstdlib>
+#include <iostream>
+
+namespace fs = std::filesystem;
+
+// Comprime una carpeta y devuelve los bytes del .zip (vacío si falla)
+std::vector<unsigned char> compressDirectory(const fs::path& directory) {
+    std::vector<unsigned char> ressult;
+
+    if (!fs::is_directory(directory)) {
+        std::cerr << "La carpeta no existe: " << directory << "\n";
+        return ressult;
+    }
+
+    zip_t* zip = zip_stream_open(nullptr, 0, ZIP_DEFAULT_COMPRESSION_LEVEL, 'w');
+    if (!zip) {
+        std::cerr << "No se pudo crear el zip en memoria\n";
+        return ressult;
+    }
+
+    bool ok = true;
+    for (const auto& e : fs::recursive_directory_iterator(directory)) {
+        if (!e.is_regular_file()) continue;
+
+        // Nombre dentro del zip: ruta relativa con '/' como separador
+        std::string nombre = fs::relative(e.path(), directory).generic_string();
+        std::string real   = e.path().string();
+
+        if (zip_entry_open(zip, nombre.c_str()) != 0) { ok = false; break; }
+        if (zip_entry_fwrite(zip, real.c_str()) != 0) {
+            zip_entry_close(zip);
+            ok = false;
+            break;
+        }
+        zip_entry_close(zip);
+    }
+
+    if (ok) {
+        char* buf = nullptr;
+        size_t bufsize = 0;
+        if (zip_stream_copy(zip, (void**)&buf, &bufsize) >= 0 && buf) {
+            ressult.assign(reinterpret_cast<unsigned char*>(buf),
+                             reinterpret_cast<unsigned char*>(buf) + bufsize);
+        }
+        std::free(buf);
+    }
+
+    zip_stream_close(zip);
+    return ressult;
+}
+
 
