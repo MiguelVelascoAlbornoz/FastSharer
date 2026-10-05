@@ -204,9 +204,13 @@ static void TCPThread(SOCKET serverSocket, std::string baseDir)
 
                 {
                     std::string htmlFiles;
+                    const auto startR{std::chrono::steady_clock::now()};
                     recursiveHTMLFileSystemCreator(std::filesystem::path("\\"),htmlFiles,0);
+                    const auto finish{std::chrono::steady_clock::now()};
                     #ifdef _DEBUG
-                    std::cout << "\033[34m" << "HTML generated with " << "\033[32m" << htmlFiles.size() <<"\033[34m" << "bytes. " << "\033[37m" <<"\n\n";
+                    const std::chrono::duration<double> elapsed_seconds{finish - start};
+                    std::cout << "\033[34m" << "HTML generated with " << "\033[32m" << htmlFiles.size() <<"\033[34m" << " bytes. " << "\033[37m" <<"\n";
+                    std::cout << "\033[34m" << "Recursive search finished in " << elapsed_seconds.count() <<"s" << "\033[37m" <<"\n";
                     #endif
                     std::string html(reinterpret_cast<const char*>(INDEX_DATA), INDEX_SIZE);
                     replaceAll(html, "{{FILES}}", htmlFiles);

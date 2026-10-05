@@ -57,7 +57,7 @@ programArgs = args.program_args  # lista de strings
 
 #Configurações do projeto
 projectName = Path.cwd().name
-projectVersion = "1.0.0.1"
+projectVersion = "1.0.1"
 engineVersion = "0.0.0"
 
 
