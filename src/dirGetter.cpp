@@ -3,13 +3,15 @@
 #include <vector>
 #include "dirGetter.h"
 
-#include <filesystem>
+
 #include <iostream>
 #include <windows.h>
 //
 // Created by migue on 05/10/2026.
 //
- bool getFiles(const char* path, std::vector<std::string>& files)
+int maxHTMLRecursionDepth = 5;
+bool getFiles(const char* path, std::vector<std::string>& files)
+
 {
     //Creacion de pipes, uno para lectura y otro de escritura
     HANDLE readPipe;
@@ -58,40 +60,31 @@
         return false;
     }
     CloseHandle(writePipe);
-    char buffer[4096];
+    std::string word;
+    char buffer[65536];
     DWORD bytesRead;
-    std::vector<char> constructionWord ={};
-    while (ReadFile(readPipe, buffer, sizeof(buffer) - 1, &bytesRead, NULL)
-           && bytesRead > 0)
-    {
-        buffer[bytesRead] = '\0';
-        int bufferIndex = 0;
-        while (buffer[bufferIndex])
-        {
-            char c = buffer[bufferIndex];
-            if (c == '\r')
-            {
-                bufferIndex++;
-                continue;
 
-            }
+    while (ReadFile(readPipe, buffer, sizeof(buffer), &bytesRead, NULL) && bytesRead > 0)
+    {
+        for (DWORD i = 0; i < bytesRead; ++i)
+        {
+            char c = buffer[i];
+            if (c == '\r') continue;
             if (c == '\n')
             {
-                if (!constructionWord.empty())
+                if (!word.empty())
                 {
-                    constructionWord.push_back('\0');
-                    files.push_back(std::string(constructionWord.data()));
+                    files.push_back(std::move(word));
+                    word.clear();
                 }
-                bufferIndex++;
-                constructionWord.clear();
                 continue;
             }
-            constructionWord.push_back(c);
-            bufferIndex++;
+            word.push_back(c);
         }
     }
-    if (!constructionWord.empty())              // última línea sin salto final
-        files.push_back(std::string(constructionWord.data()));
+    if (!word.empty())
+        files.push_back(std::move(word));
+
 
     WaitForSingleObject(pi.hProcess, INFINITE);
 
@@ -153,51 +146,52 @@ inline std::string urlEncode(const std::string& s)
      return out;
  }
 namespace fs = std::filesystem;
-std::string recursiveHTMLFileSystemCreator(const char* path)
+void recursiveHTMLFileSystemCreator(const fs::path& path, std::string& out, int depth)
  {
-     std::string result = "<ul class=\"tree\">\n";
+
+     out += "<ul class=\"tree\">\n";
 
     std::error_code ec;
 
-    // u8path: interpreta el string como UTF-8 (no como codepage de Windows)
-    std::filesystem::path(
-    reinterpret_cast<const char8_t*>(path)
-    );
-
-     std::vector<std::string> availableFiles = {};
-     if (!getFiles(path, availableFiles))
-     {
-         std::cerr << "Could not get files list: " << ec.message() << std::endl;
-         return "";
-     }
-     for (auto file : availableFiles)
-     {
-         fs::path childPath = fs::path(path) / file;   // mantén el tipo fs::path
+    fs::directory_iterator it(path, fs::directory_options::skip_permission_denied, ec);
+    if (ec) {
+        std::cerr << "Error abriendo " << path << ": " << ec.message() << "\n";
+        out += + "</ul>\n";
+        return;
+    }
+    for (const auto& entry : it)
+    {
         try
         {
-
-
-            childPath = childPath.u8string();
-            if (fs::is_directory(childPath, ec))
+            auto fileRelativePath = entry.path();
+            const std::string name = htmlEscape(fileRelativePath.filename().string());
+            auto relativePath = htmlEscape(entry.path().string());
+            if (entry.is_regular_file())
             {
-                result += "<li class=\"folder\"><details><summary>" + htmlEscape(file) + "</summary>"
-                        + recursiveHTMLFileSystemCreator(childPath.string().c_str())
-                        + "</details></li>\n";
-            }else if (fs::is_regular_file(childPath, ec))
+                out += "<li><a href=\"" + relativePath + "\" download>" + name +"</a></li>";
+
+            } else
             {
-                result += "<li><a href=\"" + htmlEscape(childPath.string()) + "\" download>" + htmlEscape(file) +"</a></li>";
+                out += "<li class=\"folder\"><details><summary>" + name + "<a href=\"" + relativePath + "\" download class=\"desc\">Download as zip</a></summary>";
+                if (depth +1 < maxHTMLRecursionDepth){
+                    recursiveHTMLFileSystemCreator(fileRelativePath,out,depth+1);
+                }
+
+                out += "</details></li>\n";
             }
-        } catch (const fs::filesystem_error& e) {
-            std::cerr << "Error with path: " << childPath.string() << " : " << e.what() << std::endl;
+        }catch (const fs::filesystem_error& e) {
+            std::cerr << "Error with path: " << entry.path() << " : " << e.what() << std::endl;
             continue;                   // sigue con el siguiente archivo
         }catch (const std::exception& e)
         {
             std::cerr << "Error inesperado: " << e.what() << "\n";
             continue;
         }
-     }
-     result += "</ul>\n";
-     return result;
+
+    }
+
+     out+= "</ul>\n";
+
  }
 
 

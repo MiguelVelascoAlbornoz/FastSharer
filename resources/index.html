@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>FastSharer</title>
     <style>
+    summary .desc {
+            display: inline;
+            font-size: 0.75em;      /* más pequeña que el nombre */
+            color: #888;            /* opcional: más tenue */
+            margin-left: 0.6em;     /* separación respecto al nombre */
+            font-weight: normal;
+            cursor: pointer;
+        }
+    summary .desc:hover { text-decoration: underline; }
     :root {
     --bg: #f4f6fb;
     --card: #ffffff;
@@ -121,6 +130,7 @@
 
     document.getElementById('expand').onclick = () => folders.forEach(d => d.open = true);
     document.getElementById('collapse').onclick = () => folders.forEach(d => d.open = false);
+
 </script>
 </body>
 </html>

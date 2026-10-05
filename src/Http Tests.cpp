@@ -138,7 +138,7 @@ static void TCPThread(SOCKET serverSocket, std::string baseDir)
         if (!running) break;
         char clientIP[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &(clientAddr.sin_addr), clientIP, INET_ADDRSTRLEN);
-        std::cout << "Conexion decode: " << clientIP << "\n";
+        std::cout << "\nConexion decode: " << clientIP << "\n";
 
         if (clientSocket == INVALID_SOCKET) {
             if (!running) break;
@@ -150,7 +150,11 @@ static void TCPThread(SOCKET serverSocket, std::string baseDir)
         if (bytes > 0) {
 			std::istringstream request(buffer);
             std::string method, path, protocol;
+            #ifdef _DEBUG
+            std::cout << "\033[31m" << "Request start: " << "\033[37m" << std::endl;
             std::cout << request.str() << "\n";
+            std::cout << "\033[31m" << "Request end." << "\033[37m" << std::endl;
+            #endif
             request >> method >> path >> protocol; //escrite la primera segunda y tercera palavra en method path y protocol respectivamente
 
             //std::string fullPath = baseDir + path;
@@ -184,7 +188,13 @@ static void TCPThread(SOCKET serverSocket, std::string baseDir)
                 std::cout << "Valid request...\n\n\n\n\n";
             }
             else {
-                std::string htmlFiles = recursiveHTMLFileSystemCreator("");
+                //creacion de la respuesta
+                const auto start{std::chrono::steady_clock::now()};
+
+                //creacion de archivo html
+
+                std::string htmlFiles;
+                recursiveHTMLFileSystemCreator(std::filesystem::path("\\"),htmlFiles,0);
 
                 std::string html(reinterpret_cast<const char*>(INDEX_DATA), INDEX_SIZE);
                 replaceAll(html, "{{FILES}}", htmlFiles);
@@ -195,7 +205,15 @@ static void TCPThread(SOCKET serverSocket, std::string baseDir)
                 response << "Content-Length: " << html.size() << "\r\n";
                 response << "\r\n";
                 response << (html);
-                std::cout << "Invalid request, opening index...\n\n\n\n\n";;
+                std::cout << "Invalid request, opening index...\n";;
+
+
+                const auto finish{std::chrono::steady_clock::now()};
+                #ifdef _DEBUG
+                const std::chrono::duration<double> elapsed_seconds{finish - start};
+                std::cout << "\033[31m" << "Response creation late: " << elapsed_seconds.count() << " seconds.\n" << "\033[37m";
+                #endif
+
             }
 
             std::string res_str = response.str();
@@ -209,7 +227,7 @@ static void TCPThread(SOCKET serverSocket, std::string baseDir)
 
 int main()
 {
-
+    maxHTMLRecursionDepth = 5;
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
         std::cerr << "Error al inicializar Winsock\n";
         return 1;
