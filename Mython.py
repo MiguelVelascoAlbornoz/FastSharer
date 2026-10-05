@@ -1,3 +1,5 @@
+#v1.0.4
+#Implementado un sistema para que sea posible añadir resources al build
 #v1.0.3
 #Implementado para que el color no de error en linux
 #Mejoras en la calidad del codigo

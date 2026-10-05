@@ -80,28 +80,6 @@ static std::string get_public_ip() {
     return ip;
 }
 
-static std::string url_decode(const std::string& value) {
-    std::string result;
-    char ch;
-    int ii;
-
-    size_t vLength = value.length();
-    for (size_t i = 0; i < vLength; i++) {
-        if (value[i] == '%') {
-            sscanf_s(value.substr(i + 1, 2).c_str(), "%x", &ii);
-            ch = static_cast<char>(ii);
-            result += ch;
-            i += 2;
-        }
-        else if (value[i] == '+') {
-            result += ' ';
-        }
-        else {
-            result += value[i];
-        }
-    }
-    return result;
-}
 
 static std::string get_content_type(const std::string& path) {
     if (path.find(".html") != std::string::npos) return "text/html";
@@ -122,7 +100,7 @@ bool resolveSafe(const fs::path& root, const std::string& urlPath, fs::path& out
     if (p.empty() || p[0] != '/') return false;
     if (p.find('\0') != std::string::npos) return false;
     if (p.find('\\') != std::string::npos) return false; // opcional, pero simplifica
-    if (p == "/") p = "/index.html";
+    if (p == "/") return false;
 
     std::error_code ec;
     fs::path rootCanon = fs::weakly_canonical(root, ec);
@@ -189,10 +167,7 @@ static void TCPThread(SOCKET serverSocket, std::string baseDir)
 
             //}
             std::filesystem::path outPath;
-            if (!resolveSafe(baseDir,path, outPath))
-            {
-                outPath = "/index.html";
-            }
+            resolveSafe(baseDir,path, outPath);
             std::ifstream file(outPath, std::ios::binary);
             std::ostringstream response;
 			//generamos la respuesta HTTP en caso de existir el direcotrio o no
@@ -209,14 +184,17 @@ static void TCPThread(SOCKET serverSocket, std::string baseDir)
                 std::cout << "Valid request...\n\n\n\n\n";
             }
             else {
-                getFiles()
+                std::string htmlFiles = recursiveHTMLFileSystemCreator("");
+
+                std::string html(reinterpret_cast<const char*>(INDEX_DATA), INDEX_SIZE);
+                replaceAll(html, "{{FILES}}", htmlFiles);
 
                 std::string content = "<h1>404 Not Found</h1>";
                 response << "HTTP/1.1 404 Not Found\r\n";
                 response << "Content-Type: text/html\r\n";
-                response << "Content-Length: " << INDEX_SIZE << "\r\n";
+                response << "Content-Length: " << html.size() << "\r\n";
                 response << "\r\n";
-                response.write(reinterpret_cast<const char*>(INDEX_DATA), INDEX_SIZE);
+                response << (html);
                 std::cout << "Invalid request, opening index...\n\n\n\n\n";;
             }
 
@@ -265,8 +243,8 @@ int main()
         return 1;
     }
     std::cout << "Servidor HTTP escuchando en puerto 8080...\n";
-    std::cout << "Server listening in : https://" << get_local_ip() << ":8080/" << std::endl;
-    std::cout << "Server listening in : https://" << get_public_ip() << ":8080/" << std::endl;
+    std::cout << "Server listening in : http://" << get_local_ip() << ":8080/" << std::endl;
+    std::cout << "Server listening in : http://" << get_public_ip() << ":8080/" << std::endl;
     // Carpeta segura
     char exePath[MAX_PATH];
     GetCurrentDirectory(MAX_PATH, exePath);

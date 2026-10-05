@@ -2,6 +2,8 @@
 #include <string>
 #include <vector>
 #include "dirGetter.h"
+
+#include <filesystem>
 #include <windows.h>
 //
 // Created by migue on 05/10/2026.
@@ -33,10 +35,14 @@
     ZeroMemory(&pi, sizeof(pi));
     auto applicationName = "C://Windows//System32//cmd.exe";
 
-    char commandLine[] = "/c dir /b";
+     std::string commandLine = std::string("cmd.exe /c \"dir /b \"") + path + "\"\"";
+
+     // CreateProcessA necesita un buffer modificable
+     std::vector<char> cmd(commandLine.begin(), commandLine.end());
+     cmd.push_back('\0');
     if (!CreateProcessA(
       applicationName,
-      commandLine              ,
+      cmd.data()             ,
       NULL,NULL,
       TRUE,// ¿Heredar handles?
          0,                     // Flags de creación
@@ -63,13 +69,18 @@
         {
             char c = buffer[bufferIndex];
             if (c == '\r')
-                continue;
+            {
                 bufferIndex++;
+                continue;
+
+            }
             if (c == '\n')
             {
                 if (!constructionWord.empty())
+                {
                     constructionWord.push_back('\0');
                     files.push_back(std::string(constructionWord.data()));
+                }
                 bufferIndex++;
                 constructionWord.clear();
                 continue;
@@ -88,3 +99,97 @@
     CloseHandle(pi.hThread);
     return true;
 }
+std::string htmlEscape(const std::string& s)
+ {
+     std::string out;
+     out.reserve(s.size());
+     for (char c : s)
+     {
+         switch (c)
+         {
+         case '&':  out += "&amp;";  break;
+         case '<':  out += "&lt;";   break;
+         case '>':  out += "&gt;";   break;
+         case '"':  out += "&quot;"; break;
+         case '\'': out += "&#39;";  break;
+         default:   out += c;        break;
+         }
+     }
+     return out;
+ }
+ std::string url_decode(const std::string& value) {
+     std::string result;
+     char ch;
+     int ii;
+
+     size_t vLength = value.length();
+     for (size_t i = 0; i < vLength; i++) {
+         if (value[i] == '%') {
+             sscanf_s(value.substr(i + 1, 2).c_str(), "%x", &ii);
+             ch = static_cast<char>(ii);
+             result += ch;
+             i += 2;
+         }
+         else if (value[i] == '+') {
+             result += ' ';
+         }
+         else {
+             result += value[i];
+         }
+     }
+     return result;
+ }
+inline std::string urlEncode(const std::string& s)
+ {
+     static auto hex = "0123456789ABCDEF";
+     std::string out;
+     for (unsigned char c : s)
+     {
+         if (std::isalnum(c) || c=='-' || c=='_' || c=='.' || c=='~' || c=='/')
+             out += c;
+         else { out += '%'; out += hex[c >> 4]; out += hex[c & 15]; }
+     }
+     return out;
+ }
+namespace fs = std::filesystem;
+std::string recursiveHTMLFileSystemCreator(const char* path)
+ {
+     std::string result = "<ul class=\"tree\">\n";
+     std::vector<std::string> availableFiles = {};
+     getFiles(path, availableFiles);
+     for (auto file : availableFiles)
+     {
+
+
+         fs::path childPath = fs::path(path) / file;   // mantén el tipo fs::path
+         std::error_code ec;
+
+         if (fs::is_directory(childPath, ec))
+         {
+             result += "<li class=\"folder\"><details open><summary>" + htmlEscape(file) + "</summary>"
+                     + recursiveHTMLFileSystemCreator(childPath.string().c_str())
+                     + "</details></li>\n";
+         }
+         else if (fs::is_regular_file(childPath, ec))
+         {
+             result += "<li class=\"file\"><a href=\"" + htmlEscape(childPath.string()) + "\">"
+                     + htmlEscape(file) + "</a></li>\n";
+         }
+
+     }
+     result += "</ul>\n";
+     return result;
+ }
+
+
+
+void replaceAll(std::string& text, const std::string& key, const std::string& value)
+ {
+     size_t pos = 0;
+     while ((pos = text.find(key, pos)) != std::string::npos)
+     {
+         text.replace(pos, key.size(), value);
+         pos += value.size();   // salta lo insertado, evita bucle infinito
+     }
+ }
+
