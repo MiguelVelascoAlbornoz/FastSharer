@@ -10,8 +10,8 @@
 #include <windows.h>
 #include <wininet.h> // Adicione esta linha
 #include <mutex>
-
-
+#include "../build/generated/resources.h"
+#include "dirGetter.h"
 
 #include <atomic>
 
@@ -111,6 +111,9 @@ static std::string get_content_type(const std::string& path) {
 }
 
 #include <filesystem>
+
+
+
 namespace fs = std::filesystem;
 
 bool resolveSafe(const fs::path& root, const std::string& urlPath, fs::path& out)
@@ -206,13 +209,15 @@ static void TCPThread(SOCKET serverSocket, std::string baseDir)
                 std::cout << "Valid request...\n\n\n\n\n";
             }
             else {
+                getFiles()
+
                 std::string content = "<h1>404 Not Found</h1>";
                 response << "HTTP/1.1 404 Not Found\r\n";
                 response << "Content-Type: text/html\r\n";
-                response << "Content-Length: " << content.size() << "\r\n";
+                response << "Content-Length: " << INDEX_SIZE << "\r\n";
                 response << "\r\n";
-                response << content;
-                std::cout << "Invalid request...\n\n\n\n\n";
+                response.write(reinterpret_cast<const char*>(INDEX_DATA), INDEX_SIZE);
+                std::cout << "Invalid request, opening index...\n\n\n\n\n";;
             }
 
             std::string res_str = response.str();

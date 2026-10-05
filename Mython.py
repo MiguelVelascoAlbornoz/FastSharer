@@ -16,7 +16,7 @@ import platform
 import subprocess
 import ctypes
 import sys
-
+import re
 
 if sys.platform == "win32":
     import ctypes
@@ -57,6 +57,8 @@ programArgs = args.program_args  # lista de strings
 projectName = Path.cwd().name
 projectVersion = "1.0.0"
 engineVersion = "0.0.0"
+
+
 flags = {
     "debug": [
         "-g",
@@ -79,6 +81,7 @@ flags = {
         "-Wno-unused-result",
     ]
 }
+
 verifyArguments(compilationMode, flags)
 includeDirs = ["-Iexternal/includes"] #Lista de dirs a incluir, cada dir tem de ser precedido por -I    
 libsDirs = ["-Lexternal/libs"] #Lista de dirs de libs, cada dir tem de ser precedido por -L
@@ -94,8 +97,8 @@ filesExtension = "cpp" #Extensão dos ficheiros do projeto
 compilatedFilesExtension = "o" #Extensão dos ficheiros compilados
 buildPath = Path("build/out") #Path onde ficam os executáveis finais
 compilator = "g++" #Compilador a usar, deve estar no PATH do sistema
-
-
+generatedPath = Path("build/generated")
+resourcesPath = Path("resources")
 
 #Paths onde ficam os ficheiros compilados e os executáveis finais, cada um tem uma subpasta para cada modo de compilação   
 compilatedFilesPath = compilationPath / compilationMode
@@ -111,6 +114,32 @@ compileCommand = [
 
 print("Compile command: ")
 print(" ".join(compileCommand))
+
+
+
+
+generatedPath.mkdir(parents=True, exist_ok=True)
+
+lines = ["#pragma once", "#include <cstddef>", ""]
+if resourcesPath.exists():
+    for fileName in sorted(resourcesPath.rglob("*")):
+        if not fileName.is_file():
+            continue
+        data = fileName.read_bytes()
+        if not data:
+            continue
+        name = re.sub(r"\W", "_", fileName.stem.upper())
+        arr = ",".join(map(str, data))
+        lines.append(f"inline constexpr unsigned char {name}_DATA[] = {{{arr}}};")
+        lines.append(f"inline constexpr std::size_t {name}_SIZE = {len(data)};")
+        lines.append("")
+
+newContent = "\n".join(lines)
+headerFile = generatedPath / "resources.h"
+
+# Solo reescribir si cambió, para no tocar la fecha de modificación sin necesidad
+if not headerFile.exists() or headerFile.read_text() != newContent:
+    headerFile.write_text(newContent)
 
 # Procuramos os ficheiros e tempos de modificação do projeto
 # Dicionario: Path -> tiempo de modificación
@@ -161,7 +190,7 @@ def getIncludedHeaders(_file: Path):
 
     return _headers
 
-
+#As chaves são os Paths dos fiche
 #Percorrer a lista de ficheiros do projeto.
 #Procura-se o nome desse ficheiro em compilated files.
 #Quando se encontrar verifica se a ulima data de compilação é menor do que a ultima 
@@ -218,7 +247,7 @@ for file, time in pFilesTimes.items():
     if result.stdout:
         print(result.stdout)
     if result.returncode != 0:
-        if platform.system == "win32":
+        if sys.platform == "win32":
             ctypes.windll.user32.MessageBeep(0x10) #
             ctypes.windll.user32.MessageBoxW(0, f"Error compiling {file.name}", "Compilation Error", 0)
         print(f"Error compiling {file.name}")
@@ -267,7 +296,7 @@ if result.stderr:
 if result.stdout:
     print(result.stdout)
 if result.returncode != 0:
-    if platform.system == "win32":
+    if sys.platform == "win32":
         ctypes.windll.user32.MessageBeep(0x10) #
         ctypes.windll.user32.MessageBoxW(0, f"Error linking {projectName}.exe", "Linking Error", 0)
     print(f"Error linking {projectName}.exe")
@@ -276,7 +305,7 @@ else:
     print(f"linked in {(datetime.now()-initialTime).total_seconds()}s")
     if flagExecute:
         exePath = finalBuildPath / f"{projectName}.exe"
-        if platform.system() == "Windows":
+        if sys.platform == "win32":
           subprocess.Popen([str(exePath)] + programArgs, creationflags=subprocess.CREATE_NEW_CONSOLE)
         else:  # Linux (o macOS con adaptación)
             #print(["./"+str(exePath)] + programArgs)
