@@ -4,6 +4,7 @@
 #include "dirGetter.h"
 
 #include <filesystem>
+#include <iostream>
 #include <windows.h>
 //
 // Created by migue on 05/10/2026.
@@ -155,27 +156,45 @@ namespace fs = std::filesystem;
 std::string recursiveHTMLFileSystemCreator(const char* path)
  {
      std::string result = "<ul class=\"tree\">\n";
+
+    std::error_code ec;
+
+    // u8path: interpreta el string como UTF-8 (no como codepage de Windows)
+    std::filesystem::path(
+    reinterpret_cast<const char8_t*>(path)
+    );
+
      std::vector<std::string> availableFiles = {};
-     getFiles(path, availableFiles);
+     if (!getFiles(path, availableFiles))
+     {
+         std::cerr << "Could not get files list: " << ec.message() << std::endl;
+         return "";
+     }
      for (auto file : availableFiles)
      {
-
-
          fs::path childPath = fs::path(path) / file;   // mantén el tipo fs::path
-         std::error_code ec;
+        try
+        {
 
-         if (fs::is_directory(childPath, ec))
-         {
-             result += "<li class=\"folder\"><details open><summary>" + htmlEscape(file) + "</summary>"
-                     + recursiveHTMLFileSystemCreator(childPath.string().c_str())
-                     + "</details></li>\n";
-         }
-         else if (fs::is_regular_file(childPath, ec))
-         {
-             result += "<li class=\"file\"><a href=\"" + htmlEscape(childPath.string()) + "\">"
-                     + htmlEscape(file) + "</a></li>\n";
-         }
 
+            childPath = childPath.u8string();
+            if (fs::is_directory(childPath, ec))
+            {
+                result += "<li class=\"folder\"><details><summary>" + htmlEscape(file) + "</summary>"
+                        + recursiveHTMLFileSystemCreator(childPath.string().c_str())
+                        + "</details></li>\n";
+            }else if (fs::is_regular_file(childPath, ec))
+            {
+                result += "<li><a href=\"" + htmlEscape(childPath.string()) + "\" download>" + htmlEscape(file) +"</a></li>";
+            }
+        } catch (const fs::filesystem_error& e) {
+            std::cerr << "Error with path: " << childPath.string() << " : " << e.what() << std::endl;
+            continue;                   // sigue con el siguiente archivo
+        }catch (const std::exception& e)
+        {
+            std::cerr << "Error inesperado: " << e.what() << "\n";
+            continue;
+        }
      }
      result += "</ul>\n";
      return result;

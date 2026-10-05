@@ -91,6 +91,9 @@ Una vez iniciado, abre en el navegador la dirección que muestre el programa (po
 - [ ] Puerto configurable
 - [ ] Protección contra path traversal (`..`) en las rutas solicitadas
 - [ ] Soporte multiplataforma
+- [ ] ZIP atravez del sitio web
+- [ ] Mostrar cuanto pesa cada arvhivo
+- [ ] Mejorar los iconos
 
 ## Licencia
 

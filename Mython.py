@@ -90,7 +90,7 @@ libsDirs = ["-Lexternal/libs"] #Lista de dirs de libs, cada dir tem de ser prece
 libs = {
     "debug": [],
     "release": [],
-    "all": ["-lm","-lwininet","-lws2_32"]
+    "all": ["-lm","-lwininet","-lws2_32","-static"]
 }
 #Configurações de paths, extensões, libs e flags
 compilationPath = Path("build/compilationFiles") #Path onde fica todo o relacionado com a compilação

@@ -2,9 +2,125 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FastSharer</title>
+    <style>
+    :root {
+    --bg: #f4f6fb;
+    --card: #ffffff;
+    --text: #1f2937;
+    --muted: #6b7280;
+    --accent: #4f46e5;
+    --hover: #eef2ff;
+    --border: #e5e7eb;
+    }
+    @media (prefers-color-scheme: dark) {
+    :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --text: #e5e7eb;
+    --muted: #94a3b8;
+    --accent: #818cf8;
+    --hover: #2b3a55;
+    --border: #334155;
+    }
+    }
+    * { box-sizing: border-box; }
+    body {
+    margin: 0;
+    padding: 24px 16px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    .container { max-width: 860px; margin: 0 auto; }
+    header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+    header h1 { margin: 0; font-size: 1.6rem; }
+    header span { color: var(--muted); font-size: .9rem; }
+    .toolbar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .toolbar input {
+    flex: 1; min-width: 180px;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--text);
+    font-size: 1rem;
+    }
+    .toolbar input:focus { outline: 2px solid var(--accent); border-color: transparent; }
+    .toolbar button {
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--text);
+    cursor: pointer;
+    font-size: .9rem;
+    }
+    .toolbar button:hover { background: var(--hover); }
+    .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, .06);
+    }
+    ul { list-style: none; margin: 0; padding-left: 1.3em; }
+    .card > ul { padding-left: .4em; }
+    li { margin: 1px 0; }
+    a, summary {
+    display: block;
+    padding: 6px 10px;
+    border-radius: 8px;
+    color: var(--text);
+    text-decoration: none;
+    }
+    a:hover, summary:hover { background: var(--hover); }
+    a:hover { color: var(--accent); }
+    summary { cursor: pointer; font-weight: 600; list-style: none; }
+    summary::-webkit-details-marker { display: none; }
+    summary::before { content: "📁 "; }
+    details[open] > summary::before { content: "📂 "; }
+    li > a::before { content: "📄 "; }
+    footer { text-align: center; margin-top: 20px; color: var(--muted); font-size: .8rem; }
+    li[hidden] { display: none; }
+    </style>
 </head>
 <body>
-{{FILES}}
+<div class="container">
+    <header>
+        <h1>FastSharer</h1>
+        <span>Archivos compartidos</span>
+    </header>
+
+    <div class="toolbar">
+        <input id="search" type="search" placeholder="Buscar archivos...">
+        <button id="expand">Expandir todo</button>
+        <button id="collapse">Contraer todo</button>
+    </div>
+
+    <div class="card">
+        {{FILES}}
+    </div>
+
+    <footer>Compartido con FastSharer</footer>
+</div>
+
+<script>
+    const search = document.getElementById('search');
+    const items = document.querySelectorAll('li');
+    const folders = document.querySelectorAll('details');
+
+    search.addEventListener('input', () => {
+        const q = search.value.trim().toLowerCase();
+        items.forEach(li => {
+            li.hidden = q !== '' && !li.textContent.toLowerCase().includes(q);
+        });
+        folders.forEach(d => { d.open = q !== ''; });
+    });
+
+    document.getElementById('expand').onclick = () => folders.forEach(d => d.open = true);
+    document.getElementById('collapse').onclick = () => folders.forEach(d => d.open = false);
+</script>
 </body>
 </html>
