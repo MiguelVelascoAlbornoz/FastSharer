@@ -153,8 +153,10 @@ void recursiveHTMLFileSystemCreator(const fs::path& path, std::string& out, int 
      out += "<ul class=\"tree\">\n";
 
     std::error_code ec;
-
-    fs::directory_iterator it(path, fs::directory_options::skip_permission_denied, ec);
+                // lo que te llega
+    fs::path rel = path.relative_path();          // "shaders" (sin la raíz)
+    fs::path full = fs::current_path() / rel;
+    fs::directory_iterator it(full, fs::directory_options::skip_permission_denied, ec);
     if (ec) {
         std::cerr << "Error abriendo " << path << ": " << ec.message() << "\n";
         out += + "</ul>\n";
@@ -164,9 +166,11 @@ void recursiveHTMLFileSystemCreator(const fs::path& path, std::string& out, int 
     {
         try
         {
-            auto fileRelativePath = entry.path();
-            const std::string name = htmlEscape(fileRelativePath.filename().string());
-            auto relativePath = htmlEscape(entry.path().string());
+            fs::path base = fs::current_path();   // la misma base que usaste para construir `full`
+
+            auto rel2 = entry.path().lexically_relative(base);        // "shaders\x.spv"
+            auto relativePath = htmlEscape(rel2.generic_string());    // "shaders/x.spv"
+            const std::string name = htmlEscape(entry.path().filename().string());
             if (entry.is_regular_file())
             {
                 std::string extension = entry.path().extension().string();
@@ -184,7 +188,7 @@ void recursiveHTMLFileSystemCreator(const fs::path& path, std::string& out, int 
             {
                 out += "<li class=\"folder\"><details><summary>" + name + "<a href=\"" + relativePath + "\" download class=\"desc\">Download as zip</a></summary>";
                 if (depth +1 < maxHTMLRecursionDepth){
-                    recursiveHTMLFileSystemCreator(fileRelativePath,out,depth+1);
+                    recursiveHTMLFileSystemCreator(relativePath,out,depth+1);
                 }
 
                 out += "</details></li>\n";

@@ -158,19 +158,7 @@ static void TCPThread(SOCKET serverSocket, std::string baseDir)
             #endif
             request >> method >> path >> protocol; //escrite la primera segunda y tercera palavra en method path y protocol respectivamente
 
-            //std::string fullPath = baseDir + path;
-            //std::replace(fullPath.begin(), fullPath.end(), '/', '\\');
 
-            //char absolutePath[MAX_PATH];
-            //DWORD length = GetFullPathNameA(fullPath.c_str(), MAX_PATH, absolutePath, nullptr);
-
-            //std::string absPathStr = absolutePath;
-            // Bloquear rutas que salgan del directorio base
-            //if (absPathStr.find(baseDir) != 0) {
-            //    // Si intenta salir del directorio base, servir 404
-            //    absPathStr = baseDir + "\\404.html"; // o puedes crear contenido "<h1>403 Forbidden</h1>"
-
-            //}
             std::filesystem::path outPath;
             bool isSafe = resolveSafe(baseDir,path, outPath);
             std::ifstream file(outPath, std::ios::binary);
@@ -192,7 +180,7 @@ static void TCPThread(SOCKET serverSocket, std::string baseDir)
                 std::vector<unsigned char> zip;
                 if (isSafe)
                 {
-                    zip = compressDirectory(path);
+                    zip = compressDirectory(outPath);
                 }
                 //creacion de la respuesta
                 const auto start{std::chrono::steady_clock::now()};
@@ -300,13 +288,13 @@ int main()
     //if (lastSlash) {
     //  *lastSlash = '\0'; // Agora exePath contem apenas o diretorio
     //}
+    std::filesystem::path cwd = std::filesystem::current_path();
+    std::string baseDir = cwd.string();
 
-    std::string baseDir = exePath;
-
-    std::thread tcpThread(TCPThread,serverSocket,exePath);
+    std::thread tcpThread(TCPThread,serverSocket,baseDir);
 
 
-    Commands::startCMD(exePath);
+    Commands::startCMD(baseDir.data());
     running = false;
     closesocket(serverSocket);
 
